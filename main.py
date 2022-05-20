@@ -1,5 +1,6 @@
 import qqbot
-from check_members import update_db, check_members_change
+import os
+from check_members import update_db, check_members_change, execute_sql
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 
@@ -26,6 +27,10 @@ async def _message_handler(event, message: qqbot.Message):
 
 
 if __name__ == "__main__":
+    # 数据库不存在，需要新建数据库
+    if not os.path.exists("testsqlite.db"):
+        create_db_sql = "CREATE TABLE member(member_id VARCHAR(40), guild_id VARCHAR(40) not null, joined_at DATETIME not null, PRIMARY KEY(member_id, guild_id));"
+        execute_sql(create_db_sql)
     token = qqbot.Token("102006239", "qdW15z6VhVv9EARny0GPsNIGf0pzJt8b")
 	# 定时更新成员列表数据库
     scheduler = AsyncIOScheduler()
