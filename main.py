@@ -2,6 +2,7 @@ import qqbot
 import os
 from check_members import update_db, check_members_change, execute_sql
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import asyncio
 
 
 async def _message_handler(event, message: qqbot.Message):
@@ -12,10 +13,9 @@ async def _message_handler(event, message: qqbot.Message):
     # 日志打印@机器人的信息
     qqbot.logger.info("event %s" % event + ",receive message %s" % message.content)
     guild_id = message.guild_id
-	# 识别change/指令
-    # start_index为消息正文起始位置
+    # 识别/change指令，其中start_index为消息正文起始位置
     start_index = message.content.find('> ') + 2
-    if "change/" == message.content[start_index:]:
+    if "/change " == message.content[start_index:]:
         new_members, quit_members = await check_members_change(guild_id, token)
         nums_new = len(new_members)
         nums_quit = len(quit_members)
@@ -27,15 +27,21 @@ async def _message_handler(event, message: qqbot.Message):
 
 
 if __name__ == "__main__":
+    token = qqbot.Token("102006239", "qdW15z6VhVv9EARny0GPsNIGf0pzJt8b")
+
     # 数据库不存在，需要新建数据库
     if not os.path.exists("testsqlite.db"):
+        qqbot.logger.info('数据库不存在，正在新建数据库')
         create_db_sql = "CREATE TABLE member(member_id VARCHAR(40), guild_id VARCHAR(40) not null, joined_at DATETIME not null, PRIMARY KEY(member_id, guild_id));"
         execute_sql(create_db_sql)
-    token = qqbot.Token("102006239", "qdW15z6VhVv9EARny0GPsNIGf0pzJt8b")
+    # 每次启动时，都以当前的QQ频道成员列表更新数据库，保证测试效果合理
+    qqbot.logger.info('正在以当前的QQ频道成员列表更新数据库')
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(update_db(token))
+
 	# 定时更新成员列表数据库
     scheduler = AsyncIOScheduler()
     scheduler.add_job(update_db, "cron", (token,), hour=0, minute=0)
-    # scheduler.add_job(update_db, "cron", (token,), hour=10, minute=34)
     scheduler.start()
 
     qqbot_handler = qqbot.Handler(
